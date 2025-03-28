@@ -1,0 +1,65 @@
+service: whatsapp-referrals-app
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1
+  environment:
+    DB_HOST: ${env:DB_HOST}
+    DB_USER: ${env:DB_USER}
+    DB_PASSWORD: ${env:DB_PASSWORD}
+    DB_NAME: ${env:DB_NAME}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
+    COGNITO_APP_CLIENT_ID: ${env:COGNITO_APP_CLIENT_ID}
+
+functions:
+  signUp:
+    handler: handler.signUp
+    events:
+      - http:
+          path: sign-up
+          method: post
+          cors: true
+
+  signIn:
+    handler: handler.signIn
+    events:
+      - http:
+          path: sign-in
+          method: post
+          cors: true
+
+  processReferral:
+    handler: handler.processReferral
+    events:
+      - http:
+          path: referral
+          method: post
+          cors: true
+
+  signOut:
+    handler: handler.signOut
+    events:
+      - http:
+          path: sign-out
+          method: post
+          cors: true
+
+resources:
+  Resources:
+    ReferralTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ReferralTable
+        AttributeDefinitions:
+          - AttributeName: referralId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: referralId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+
+plugins:
+  - serverless-offline

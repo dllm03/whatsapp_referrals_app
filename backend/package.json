@@ -1,0 +1,24 @@
+{
+    "name": "whatsapp-referrals-backend",
+    "version": "1.0.0",
+    "description": "Backend for WhatsApp referrals app",
+    "main": "index.js",
+    "scripts": {
+      "start": "node index.js",
+      "dev": "nodemon index.js"
+    },
+    "dependencies": {
+      "aws-sdk": "^2.1243.0",
+      "pg": "^8.7.1",
+      "dotenv": "^10.0.0",
+      "axios": "^0.21.1",
+      "express": "^4.17.1",
+      "cors": "^2.8.5",
+      "body-parser": "^1.19.0"
+    },
+    "devDependencies": {
+      "nodemon": "^2.0.7"
+    },
+    "author": "Your Name",
+    "license": "ISC"
+  }
