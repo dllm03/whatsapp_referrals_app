@@ -1,0 +1,236 @@
+# cloudformation-dynamodb.yml
+# CloudFormation template for secure DynamoDB table with GSIs
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'DynamoDB table for WhatsApp Referrals with security features'
+
+Parameters:
+  TableName:
+    Type: String
+    Default: referrals-table
+    Description: Name of the DynamoDB table
+
+Resources:
+  ReferralsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      
+      # Encryption at rest
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt TableKMSKey.Arn
+      
+      # Point-in-time recovery
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      
+      # Billing mode
+      BillingMode: PAY_PER_REQUEST
+      
+      # Primary key
+      AttributeDefinitions:
+        - AttributeName: referralId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+        - AttributeName: city
+          AttributeType: S
+        - AttributeName: profession
+          AttributeType: S
+      
+      KeySchema:
+        - AttributeName: referralId
+          KeyType: HASH
+      
+      # Global Secondary Indexes
+      GlobalSecondaryIndexes:
+        # GSI for querying by userId
+        - IndexName: UserIdIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        
+        # GSI for querying by city and profession
+        - IndexName: CityProfessionIndex
+          KeySchema:
+            - AttributeName: city
+              KeyType: HASH
+            - AttributeName: profession
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        
+        # GSI for querying by profession
+        - IndexName: ProfessionIndex
+          KeySchema:
+            - AttributeName: profession
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      
+      # Stream configuration for change tracking
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      
+      # TTL configuration (optional - uncomment if needed)
+      # TimeToLiveSpecification:
+      #   AttributeName: expiresAt
+      #   Enabled: true
+      
+      # Tags
+      Tags:
+        - Key: Application
+          Value: WhatsApp-Referrals
+        - Key: Environment
+          Value: Production
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # KMS key for table encryption
+  TableKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for DynamoDB table encryption
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          
+          - Sid: Allow DynamoDB to use the key
+            Effect: Allow
+            Principal:
+              Service: dynamodb.amazonaws.com
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:DescribeKey'
+              - 'kms:CreateGrant'
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'kms:ViaService': !Sub 'dynamodb.${AWS::Region}.amazonaws.com'
+          
+          - Sid: Allow application role to use the key
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt ApplicationRole.Arn
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:GenerateDataKey'
+            Resource: '*'
+
+  TableKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${TableName}-key'
+      TargetKeyId: !Ref TableKMSKey
+
+  # Application IAM role
+  ApplicationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${TableName}-application-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchGetItem'
+                Resource:
+                  - !GetAtt ReferralsTable.Arn
+                  - !Sub '${ReferralsTable.Arn}/index/*'
+
+  # CloudWatch Alarms
+  ReadThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${TableName}-read-throttle'
+      AlarmDescription: Alert when read throttling occurs
+      MetricName: ReadThrottleEvents
+      Namespace: AWS/DynamoDB
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref ReferralsTable
+
+  WriteThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${TableName}-write-throttle'
+      AlarmDescription: Alert when write throttling occurs
+      MetricName: WriteThrottleEvents
+      Namespace: AWS/DynamoDB
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: TableName
+          Value: !Ref ReferralsTable
+
+Outputs:
+  TableName:
+    Description: Name of the DynamoDB table
+    Value: !Ref ReferralsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-TableName'
+  
+  TableArn:
+    Description: ARN of the DynamoDB table
+    Value: !GetAtt ReferralsTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-TableArn'
+  
+  ApplicationRoleArn:
+    Description: ARN of the application IAM role
+    Value: !GetAtt ApplicationRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ApplicationRoleArn'
+  
+  KMSKeyId:
+    Description: ID of the KMS key
+    Value: !Ref TableKMSKey
+    Export:
+      Name: !Sub '${AWS::StackName}-KMSKeyId'
