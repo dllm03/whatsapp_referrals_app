@@ -1,40 +1,69 @@
-import React, { useState, useEffect } from "react";
-import { View, TextInput, Button, FlatList, Text } from "react-native";
-import axios from "axios";
+// src/App.js - UPDATED VERSION
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './components/Auth/Login';
+import Register from './components/Auth/Register';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+import Dashboard from './components/Dashboard';
+import FileUpload from './components/FileUpload';
+import ReferralList from './components/ReferralList';
+import { authService } from './services/auth';
 
-const API_URL = "https://your-api-gateway-url/referrals";
-
-const App = () => {
-  const [referrals, setReferrals] = useState([]);
-  const [search, setSearch] = useState({ name: "", area: "", profession: "" });
-
-  useEffect(() => {
-    fetchReferrals();
-  }, []);
-
-  const fetchReferrals = async () => {
-    try {
-      const response = await axios.get(API_URL, { params: search });
-      setReferrals(response.data);
-    } catch (error) {
-      console.error(error);
-    }
+function App() {
+  const handleLoginSuccess = () => {
+    window.location.href = '/dashboard';
   };
 
   return (
-    <View style={{ padding: 20 }}>
-      <TextInput placeholder="Name" onChangeText={(text) => setSearch({ ...search, name: text })} />
-      <TextInput placeholder="Area" onChangeText={(text) => setSearch({ ...search, area: text })} />
-      <TextInput placeholder="Profession" onChangeText={(text) => setSearch({ ...search, profession: text })} />
-      <Button title="Search" onPress={fetchReferrals} />
-
-      <FlatList
-        data={referrals}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => <Text>{item.name} - {item.profession}</Text>}
-      />
-    </View>
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+        <Route path="/register" element={<Register />} />
+        
+        {/* Protected Routes */}
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/upload" 
+          element={
+            <ProtectedRoute>
+              <FileUpload />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/referrals" 
+          element={
+            <ProtectedRoute>
+              <ReferralList />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Redirect root to dashboard or login */}
+        <Route 
+          path="/" 
+          element={
+            authService.isAuthenticated() 
+              ? <Navigate to="/dashboard" replace /> 
+              : <Navigate to="/login" replace />
+          } 
+        />
+        
+        {/* 404 Not Found */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
-};
+}
 
 export default App;
