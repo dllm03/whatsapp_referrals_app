@@ -1,4 +1,5 @@
 // backend/services/fileUploadService.js
+require('dotenv').config();
 const AWS = require('aws-sdk');
 const multer = require('multer');
 const crypto = require('crypto');

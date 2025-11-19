@@ -1,4 +1,5 @@
 // backend/services/authService.js
+require('dotenv').config();
 const AWS = require('aws-sdk');
 const crypto = require('crypto');
 

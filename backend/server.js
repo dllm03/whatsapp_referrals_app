@@ -1,4 +1,5 @@
 // backend/server.js
+require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -418,6 +419,21 @@ app.post('/api/referrals', authenticate, async (req, res) => {
   }
 });
 
+// Get referral statistics
+app.get('/api/referrals/stats', authenticate, async (req, res) => {
+  try {
+    const result = await dynamodbService.getReferralStats(req.user.userId);
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Get referral by ID
 app.get('/api/referrals/:id', authenticate, async (req, res) => {
   try {
@@ -487,20 +503,7 @@ app.delete('/api/referrals/:id', authenticate, async (req, res) => {
   }
 });
 
-// Get referral statistics
-app.get('/api/referrals/stats', authenticate, async (req, res) => {
-  try {
-    const result = await dynamodbService.getReferralStats(req.user.userId);
-    
-    res.status(200).json(result);
-  } catch (error) {
-    console.error('Get stats error:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+
 
 // ============================================
 // ERROR HANDLING
