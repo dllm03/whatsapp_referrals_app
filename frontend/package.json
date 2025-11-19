@@ -1,36 +1,30 @@
 {
-    "name": "whatsapp-referrals-app-frontend",
-    "version": "1.0.0",
-    "description": "Frontend for WhatsApp Referrals App",
-    "main": "index.js",
-    "scripts": {
-      "start": "react-native start",
-      "android": "react-native run-android",
-      "ios": "react-native run-ios",
-      "test": "jest"
-    },
-    "dependencies": {
-      "react": "17.0.1",
-      "react-native": "0.64.0",
-      "react-navigation": "^4.4.4",
-      "react-navigation-stack": "^2.10.4",
-      "react-navigation-drawer": "^2.7.0",
-      "react-redux": "^7.2.3",
-      "redux": "^4.0.5",
-      "redux-thunk": "^2.3.0",
-      "axios": "^0.21.1",
-      "react-native-gesture-handler": "^1.10.3",
-      "react-native-reanimated": "^2.0.0-alpha.9",
-      "react-native-safe-area-context": "^3.1.9",
-      "react-native-screens": "^3.0.0",
-      "react-native-paper": "^4.9.2",
-      "react-native-firebase": "^12.0.0"
-    },
-    "devDependencies": {
-      "babel-preset-react-native": "^4.0.1",
-      "jest": "^26.6.3",
-      "metro-react-native-babel-preset": "^0.66.0"
-    },
-    "author": "Your Name",
-    "license": "MIT"
-  }
+  "name": "whatsapp-referrals-frontend",
+  "version": "1.0.0",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "expo": "~50.0.0",
+    "expo-status-bar": "~1.11.1",
+    "react": "18.2.0",
+    "react-native": "0.73.0",
+    "react-native-vector-icons": "^10.0.3",
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/native-stack": "^6.9.17",
+    "@react-navigation/bottom-tabs": "^6.5.11",
+    "react-native-screens": "~3.29.0",
+    "react-native-safe-area-context": "4.8.2",
+    "@react-native-async-storage/async-storage": "1.21.0",
+    "expo-document-picker": "~11.10.1",
+    "expo-file-system": "~16.0.6"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.6"
+  },
+  "private": true
+}
