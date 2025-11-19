@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
+const { v4: uuidv4 } = require('uuid');
 
 // Import services and middleware
 const { authenticate, requireRole, rateLimitByUser } = require('./middleware/auth');
@@ -19,6 +20,15 @@ const app = express();
 // ============================================
 // SECURITY MIDDLEWARE
 // ============================================
+if (process.env.NODE_ENV === 'production') {
+  // Ensure HTTPS is enforced
+  app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https') {
+      return res.redirect(`https://${req.header('host')}${req.url}`);
+    }
+    next();
+  });
+}
 
 // Set security HTTP headers
 app.use(helmet({
@@ -68,7 +78,11 @@ app.use(cors(corsOptions));
 // Body parser with size limits
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
-
+app.use((req, res, next) => {
+  req.id = uuidv4();
+  res.setHeader('X-Request-ID', req.id);
+  next();
+});
 // Sanitize data against NoSQL injection
 app.use(mongoSanitize());
 

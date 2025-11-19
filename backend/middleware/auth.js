@@ -1,7 +1,8 @@
-// backend/middleware/auth.js
+require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const jwkToPem = require('jwk-to-pem');
 const axios = require('axios');
+const { logSecurityEvent } = require('../services/securityLogger'); // ADD THIS LINE
 
 // Cache for Cognito public keys
 let cachedPems = null;
@@ -91,6 +92,13 @@ const authenticate = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // LOG SECURITY EVENT - Missing token
+      logSecurityEvent('AUTH_MISSING_TOKEN', 'unknown', {
+        ip: req.ip,
+        path: req.path,
+        method: req.method
+      });
+      
       return res.status(401).json({
         success: false,
         error: 'Missing or invalid authorization header'
@@ -110,8 +118,24 @@ const authenticate = async (req, res, next) => {
       tokenExp: decoded.exp
     };
 
+    // LOG SUCCESSFUL AUTH (optional - can be verbose)
+    // logSecurityEvent('AUTH_SUCCESS', decoded.sub, {
+    //   ip: req.ip,
+    //   path: req.path
+    // });
+
     next();
   } catch (error) {
+    // LOG SECURITY EVENT - Failed verification
+    logSecurityEvent('AUTH_FAILURE', 'unknown', {
+      error: error.message,
+      errorName: error.name,
+      ip: req.ip,
+      path: req.path,
+      method: req.method,
+      userAgent: req.get('user-agent')
+    });
+
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
@@ -133,6 +157,13 @@ const authenticate = async (req, res, next) => {
 const requireRole = (allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
+      // LOG SECURITY EVENT - No user in request
+      logSecurityEvent('AUTH_NO_USER', 'unknown', {
+        ip: req.ip,
+        path: req.path,
+        requiredRoles: allowedRoles
+      });
+      
       return res.status(401).json({
         success: false,
         error: 'Authentication required'
@@ -143,6 +174,14 @@ const requireRole = (allowedRoles) => {
     const hasRole = allowedRoles.some(role => userGroups.includes(role));
 
     if (!hasRole) {
+      // LOG SECURITY EVENT - Insufficient permissions
+      logSecurityEvent('AUTH_INSUFFICIENT_PERMISSIONS', req.user.userId, {
+        ip: req.ip,
+        path: req.path,
+        userGroups: userGroups,
+        requiredRoles: allowedRoles
+      });
+      
       return res.status(403).json({
         success: false,
         error: 'Insufficient permissions'
@@ -178,6 +217,14 @@ const rateLimitByUser = (maxRequests = 100, windowMs = 60000) => {
     requestCounts.set(userId, userRecord);
 
     if (userRecord.count > maxRequests) {
+      // LOG SECURITY EVENT - Rate limit exceeded
+      logSecurityEvent('RATE_LIMIT_EXCEEDED', userId, {
+        ip: req.ip,
+        path: req.path,
+        requestCount: userRecord.count,
+        maxRequests: maxRequests
+      });
+      
       return res.status(429).json({
         success: false,
         error: 'Too many requests',
